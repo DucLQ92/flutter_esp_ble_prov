@@ -32,9 +32,18 @@ class _MyAppState extends State<MyApp> {
   final passphraseController = TextEditingController();
 
   Future scanBleDevices() async {
+    bool isBluetoothAvailable = await _flutterEspBleProvPlugin.isBluetoothAvailable();
+    bool isBluetoothEnabled = await _flutterEspBleProvPlugin.isBluetoothEnabled();
+    if (!isBluetoothAvailable) {
+      pushFeedback('Error: Bluetooth not available');
+      return;
+    }
+    if (!isBluetoothEnabled) {
+      pushFeedback('Error: Bluetooth not enabled');
+      return;
+    }
     final prefix = prefixController.text;
-    final scannedDevices =
-        await _flutterEspBleProvPlugin.scanBleDevices(prefix);
+    final scannedDevices = await _flutterEspBleProvPlugin.scanBleDevices(prefix);
     setState(() {
       devices = scannedDevices;
     });
@@ -43,8 +52,7 @@ class _MyAppState extends State<MyApp> {
 
   Future scanWifiNetworks() async {
     final proofOfPossession = proofOfPossessionController.text;
-    final scannedNetworks = await _flutterEspBleProvPlugin.scanWifiNetworks(
-        selectedDeviceName, proofOfPossession);
+    final scannedNetworks = await _flutterEspBleProvPlugin.scanWifiNetworks(selectedDeviceName, proofOfPossession);
     setState(() {
       networks = scannedNetworks;
     });
@@ -54,10 +62,8 @@ class _MyAppState extends State<MyApp> {
   Future provisionWifi() async {
     final proofOfPossession = proofOfPossessionController.text;
     final passphrase = passphraseController.text;
-    await _flutterEspBleProvPlugin.provisionWifi(
-        selectedDeviceName, proofOfPossession, selectedSsid, passphrase);
-    pushFeedback(
-        'Success: provisioned WiFi $selectedDeviceName on $selectedSsid');
+    await _flutterEspBleProvPlugin.provisionWifi(selectedDeviceName, proofOfPossession, selectedSsid, passphrase);
+    pushFeedback('Success: provisioned WiFi $selectedDeviceName on $selectedSsid');
   }
 
   pushFeedback(String msg) {
@@ -87,8 +93,7 @@ class _MyAppState extends State<MyApp> {
             padding: EdgeInsets.all(defaultPadding),
             child: Text(
               feedbackMessage,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold, color: Colors.green.shade600),
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade600),
             ),
           ),
         ),
@@ -113,8 +118,7 @@ class _MyAppState extends State<MyApp> {
                         Expanded(
                           child: TextField(
                             controller: prefixController,
-                            decoration: const InputDecoration(
-                                hintText: 'enter device prefix'),
+                            decoration: const InputDecoration(hintText: 'enter device prefix'),
                           ),
                         ),
                       ],
@@ -160,8 +164,7 @@ class _MyAppState extends State<MyApp> {
                         Expanded(
                           child: TextField(
                             controller: proofOfPossessionController,
-                            decoration: const InputDecoration(
-                                hintText: 'enter proof of possession string'),
+                            decoration: const InputDecoration(hintText: 'enter proof of possession string'),
                           ),
                         ),
                       ],
@@ -207,8 +210,7 @@ class _MyAppState extends State<MyApp> {
                         Expanded(
                           child: TextField(
                             controller: passphraseController,
-                            decoration: const InputDecoration(
-                                hintText: 'enter passphrase'),
+                            decoration: const InputDecoration(hintText: 'enter passphrase'),
                             obscureText: true,
                           ),
                         ),

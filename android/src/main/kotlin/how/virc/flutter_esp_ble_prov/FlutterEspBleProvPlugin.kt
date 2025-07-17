@@ -3,7 +3,9 @@ package how.virc.flutter_esp_ble_prov
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.content.Intent
@@ -145,6 +147,8 @@ class Boss {
   private val scanWifiMethod = "scanWifiNetworks"
   private val provisionWifiMethod = "provisionWifi"
   private val platformVersionMethod = "getPlatformVersion"
+  private val isBluetoothAvailable = "isBluetoothAvailable"
+  private val isBluetoothEnabled = "isBluetoothEnabled"
 
   /**
    * The available scanned BLE devices.
@@ -206,6 +210,14 @@ class Boss {
         scanBleMethod -> bleScanner.call(ctx)
         scanWifiMethod -> wifiScanner.call(ctx)
         provisionWifiMethod -> wifiProvisioner.call(ctx)
+        isBluetoothAvailable -> {
+            val adapter = (platformContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
+          result.success(adapter != null)
+        }
+        isBluetoothEnabled -> {
+          val adapter = (platformContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
+          result.success(adapter?.isEnabled == true)
+        }
         else -> result.notImplemented()
       }
     })

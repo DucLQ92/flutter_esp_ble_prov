@@ -1,11 +1,17 @@
 import Flutter
 import UIKit
 import ESPProvision
+import CoreBluetooth
 
 public class SwiftFlutterEspBleProvPlugin: NSObject, FlutterPlugin {
     private let SCAN_BLE_DEVICES = "scanBleDevices"
     private let SCAN_WIFI_NETWORKS = "scanWifiNetworks"
     private let PROVISION_WIFI = "provisionWifi"
+    private let IS_BLUETOOTH_AVAILABLE = "isBluetoothAvailable"
+    private let IS_BLUETOOTH_ENABLED = "isBluetoothEnabled"
+    
+    private var centralManager: CBCentralManager?
+    private var resultCallback: FlutterResult?
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "flutter_esp_ble_prov", binaryMessenger: registrar.messenger())
@@ -16,26 +22,31 @@ public class SwiftFlutterEspBleProvPlugin: NSObject, FlutterPlugin {
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         let provisionService = BLEProvisionService(result: result);
-        let arguments = call.arguments as! [String: Any]
+        let arguments = call.arguments as? [String: Any]
         
         if(call.method == SCAN_BLE_DEVICES) {
-            let prefix = arguments["prefix"] as! String
+            let prefix = arguments?["prefix"] as! String
             provisionService.searchDevices(prefix: prefix)
         } else if(call.method == SCAN_WIFI_NETWORKS) {
-            let deviceName = arguments["deviceName"] as! String
-            let proofOfPossession = arguments["proofOfPossession"] as! String
+            let deviceName = arguments?["deviceName"] as! String
+            let proofOfPossession = arguments?["proofOfPossession"] as! String
             provisionService.scanWifiNetworks(deviceName: deviceName, proofOfPossession: proofOfPossession)
         } else if (call.method == PROVISION_WIFI) {
-            let deviceName = arguments["deviceName"] as! String
-            let proofOfPossession = arguments["proofOfPossession"] as! String
-            let ssid = arguments["ssid"] as! String
-            let passphrase = arguments["passphrase"] as! String
+            let deviceName = arguments?["deviceName"] as! String
+            let proofOfPossession = arguments?["proofOfPossession"] as! String
+            let ssid = arguments?["ssid"] as! String
+            let passphrase = arguments?["passphrase"] as! String
             provisionService.provision(
                 deviceName: deviceName,
                 proofOfPossession: proofOfPossession,
                 ssid: ssid,
                 passphrase: passphrase
             )
+        } else if (call.method == IS_BLUETOOTH_AVAILABLE) {
+            result(true) // iOS always have Bluetooth
+        } else if (call.method == IS_BLUETOOTH_ENABLED) {
+            resultCallback = result
+            centralManager = CBCentralManager(delegate: self, queue: nil)
         } else {
             result("iOS " + UIDevice.current.systemVersion)
         }
@@ -125,4 +136,13 @@ private class ESPErrorHandler {
     static func handle(error: ESPError, result: FlutterResult) {
         result(FlutterError(code: String(error.code), message: error.description, details: nil))
     }
+}
+
+extension SwiftFlutterEspBleProvPlugin: CBCentralManagerDelegate {
+  public func centralManagerDidUpdateState(_ central: CBCentralManager) {
+    if let result = resultCallback {
+      result(central.state == .poweredOn)
+      resultCallback = nil
+    }
+  }
 }
