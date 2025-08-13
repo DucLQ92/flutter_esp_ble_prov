@@ -203,28 +203,26 @@ class Boss {
   }
 
   fun call(call: MethodCall, result: Result) {
-    permissionManager.ensure(fun(_: Boolean) {
-      val ctx = CallContext(call, result)
-      when (call.method) {
-        platformVersionMethod -> getPlatformVersion(ctx)
-        scanBleMethod -> bleScanner.call(ctx)
-        scanWifiMethod -> wifiScanner.call(ctx)
-        provisionWifiMethod -> wifiProvisioner.call(ctx)
-        isBluetoothAvailable -> {
-            val adapter = (platformContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
-          result.success(adapter != null)
-        }
-        isBluetoothEnabled -> {
-          val adapter = (platformContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
-          result.success(adapter?.isEnabled == true)
-        }
-        else -> result.notImplemented()
+    when (call.method) {
+      platformVersionMethod -> result.success("Android ${Build.VERSION.RELEASE}")
+      isBluetoothAvailable -> {
+        val adapter = (platformContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
+        result.success(adapter != null)
       }
-    })
-  }
-
-  private fun getPlatformVersion(ctx: CallContext) {
-    ctx.result.success("Android ${Build.VERSION.RELEASE}")
+      isBluetoothEnabled -> {
+        val adapter = (platformContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
+        result.success(adapter?.isEnabled == true)
+      }
+      else -> permissionManager.ensure(fun(_: Boolean) {
+        val ctx = CallContext(call, result)
+        when (call.method) {
+          scanBleMethod       -> bleScanner.call(ctx)
+          scanWifiMethod      -> wifiScanner.call(ctx)
+          provisionWifiMethod -> wifiProvisioner.call(ctx)
+          else -> result.notImplemented()
+        }
+      })
+    }
   }
 
   fun attachActivity(activity: Activity) {
