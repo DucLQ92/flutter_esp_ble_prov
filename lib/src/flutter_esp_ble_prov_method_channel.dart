@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'flutter_esp_ble_prov_platform_interface.dart';
+import 'np_bluetooth_exception.dart';
 
 /// An implementation of [FlutterEspBleProvPlatform] that uses method channels.
 class MethodChannelFlutterEspBleProv extends FlutterEspBleProvPlatform {
@@ -19,12 +20,12 @@ class MethodChannelFlutterEspBleProv extends FlutterEspBleProvPlatform {
   Future<List<String>> scanBleDevices(String prefix) async {
     final hasBluetooth = await isBluetoothAvailable();
     if (!hasBluetooth) {
-      throw BluetoothException(4444, 'Bluetooth not available on this device.');
+      throw NPBluetoothException(4444, 'Bluetooth not available on this device.');
     }
 
     final isEnabled = await isBluetoothEnabled();
     if (!isEnabled) {
-      throw BluetoothException(5555, 'Bluetooth is turned off.');
+      throw NPBluetoothException(5555, 'Bluetooth is turned off.');
     }
 
     final args = {'prefix': prefix};
@@ -54,12 +55,12 @@ class MethodChannelFlutterEspBleProv extends FlutterEspBleProvPlatform {
   Future<bool?> provisionWifi(String deviceName, String proofOfPossession, String ssid, String passphrase) async {
     final hasBluetooth = await isBluetoothAvailable();
     if (!hasBluetooth) {
-      throw BluetoothException(4444, 'Bluetooth not available on this device.');
+      throw NPBluetoothException(4444, 'Bluetooth not available on this device.');
     }
 
     final isEnabled = await isBluetoothEnabled();
     if (!isEnabled) {
-      throw BluetoothException(5555, 'Bluetooth is turned off.');
+      throw NPBluetoothException(5555, 'Bluetooth is turned off.');
     }
 
     final args = {
@@ -80,14 +81,4 @@ class MethodChannelFlutterEspBleProv extends FlutterEspBleProvPlatform {
   Future<bool> isBluetoothEnabled() async {
     return await methodChannel.invokeMethod<bool>('isBluetoothEnabled') ?? false;
   }
-}
-
-class BluetoothException implements Exception {
-  final int code;
-  final String message;
-
-  BluetoothException(this.code, this.message);
-
-  @override
-  String toString() => 'BluetoothException(code: $code, message: $message)';
 }

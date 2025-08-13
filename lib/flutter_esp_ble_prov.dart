@@ -1,5 +1,7 @@
 import 'src/flutter_esp_ble_prov_platform_interface.dart';
 
+export 'src/np_bluetooth_exception.dart';
+
 /// Plugin provides core functionality to provision ESP32 devices over BLE
 class FlutterEspBleProv {
   /// Initiates a scan of BLE devices with the given [prefix].
