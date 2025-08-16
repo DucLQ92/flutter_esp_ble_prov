@@ -70,63 +70,6 @@ class CallContext(val call: MethodCall, val result: Result) {
 
 }
 
-
-/**
- * Allows for asynchronously requesting permissions based on platform version.
- *
- * The version switch is required because Bluetooth permission requirements changed at S (31).
- */
-class PermissionManager(val boss: Boss) : PluginRegistry.RequestPermissionsResultListener {
-
-  lateinit var callback: (Boolean) -> Unit
-
-  val callbacks = mutableMapOf<Int, (Boolean) -> Unit>()
-  var lastCallbackId = 0
-
-  /**
-   * Required permissions for the current version of the SDK.
-   */
-  val permissions: Array<String>
-    get() {
-      // https://developer.android.com/guide/topics/connectivity/bluetooth/permissions
-      return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
-      } else {
-        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.BLUETOOTH, Manifest.permission.BLUETOOTH_ADMIN)
-      }
-    }
-
-  /**
-   * Check permissions are granted and request them otherwise.
-   */
-  fun ensure(fCallback: (Boolean) -> Unit) {
-    callback = fCallback
-    val toRequest: MutableList<String> = mutableListOf()
-    for (p in permissions) {
-      if (ActivityCompat.checkSelfPermission(boss.platformActivity, p) != PackageManager.PERMISSION_GRANTED) {
-        toRequest.add(p)
-      }
-    }
-    if (toRequest.size > 0) {
-      ActivityCompat.requestPermissions(boss.platformActivity, toRequest.toTypedArray(), 0)
-    } else {
-      fCallback(true)
-    }
-  }
-
-  /**
-   * Called on permission request result.
-   */
-  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray): Boolean {
-    boss.d("permission result")
-    if (this::callback.isInitialized) {
-      callback(true)
-    }
-    return true
-  }
-}
-
-
 abstract class ActionManager(val boss: Boss) {
   abstract fun call(ctx: CallContext)
 }
@@ -161,7 +104,6 @@ class Boss {
   val networks = mutableSetOf<String>()
 
   // Managers performing the various actions
-  private val permissionManager: PermissionManager = PermissionManager(this)
   private val bleScanner: BleScanManager = BleScanManager(this)
   private val wifiScanner: WifiScanManager = WifiScanManager(this)
   private val wifiProvisioner: WifiProvisionManager = WifiProvisionManager(this)
@@ -203,6 +145,7 @@ class Boss {
   }
 
   fun call(call: MethodCall, result: Result) {
+    val ctx = CallContext(call, result)
     when (call.method) {
       platformVersionMethod -> result.success("Android ${Build.VERSION.RELEASE}")
       isBluetoothAvailable -> {
@@ -213,15 +156,10 @@ class Boss {
         val adapter = (platformContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
         result.success(adapter?.isEnabled == true)
       }
-      else -> permissionManager.ensure(fun(_: Boolean) {
-        val ctx = CallContext(call, result)
-        when (call.method) {
-          scanBleMethod       -> bleScanner.call(ctx)
-          scanWifiMethod      -> wifiScanner.call(ctx)
-          provisionWifiMethod -> wifiProvisioner.call(ctx)
-          else -> result.notImplemented()
-        }
-      })
+      scanBleMethod       -> bleScanner.call(ctx)
+      scanWifiMethod      -> wifiScanner.call(ctx)
+      provisionWifiMethod -> wifiProvisioner.call(ctx)
+      else -> result.notImplemented()
     }
   }
 
@@ -232,42 +170,51 @@ class Boss {
   fun attachContext(context: Context) {
     platformContext = context
   }
-
-  fun attachBinding(binding: ActivityPluginBinding) {
-    binding.addRequestPermissionsResultListener(permissionManager)
-  }
-
-  fun detachBinding(binding: ActivityPluginBinding) {
-    binding.removeRequestPermissionsResultListener(permissionManager)
-  }
 }
 
 
 class BleScanManager(boss: Boss) : ActionManager(boss) {
 
+  private var replied = false
+
   @SuppressLint("MissingPermission")
   override fun call(ctx: CallContext) {
-    boss.d("searchBleEspDevices: start")
     val prefix = ctx.arg("prefix") ?: return
+    boss.d("searchBleEspDevices: start: $prefix")
+
+    // reset trước khi scan mới
+    boss.devices.clear()
+    replied = false
 
     boss.espManager.searchBleEspDevices(prefix, object : BleScanListener {
       override fun scanStartFailed() {
-        TODO("Not yet implemented")
+        if (!replied) {
+          replied = true
+          ctx.result.success(ArrayList<String>())
+        }
       }
 
       override fun onPeripheralFound(device: BluetoothDevice?, scanResult: ScanResult?) {
+        boss.d("searchBleEspDevices: found $device $scanResult")
         device ?: return
         scanResult ?: return
         boss.devices.put(device.name, BleConnector(device, scanResult))
       }
 
       override fun scanCompleted() {
-        ctx.result.success(ArrayList<String>(boss.devices.keys))
         boss.d("searchBleEspDevices: scanComplete")
+        if (!replied) {
+          replied = true
+          ctx.result.success(ArrayList(boss.devices.keys))
+        }
       }
 
       override fun onFailure(e: java.lang.Exception?) {
-        TODO("Not yet implemented")
+        boss.e("searchBleEspDevices: error $e")
+        if (!replied) {
+          replied = true
+          ctx.result.success(ArrayList<String>())
+        }
       }
 
     })
@@ -414,13 +361,11 @@ class FlutterEspBleProvPlugin : FlutterPlugin, MethodCallHandler, ActivityAware,
   private fun init(binding: ActivityPluginBinding) {
     activityBinding = binding;
     binding.addActivityResultListener(this)
-    boss.attachBinding(binding)
     boss.attachActivity(binding.activity)
   }
 
   private fun tearDown(binding: ActivityPluginBinding) {
     binding.removeActivityResultListener(this)
-    boss.detachBinding(binding)
     activityBinding = null;
   }
 }
