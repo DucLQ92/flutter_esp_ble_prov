@@ -230,6 +230,7 @@ class WifiScanManager(boss: Boss) : ActionManager(boss) {
     boss.d("esp connect: start")
     boss.connect(conn, proofOfPossession) { esp ->
       boss.d("scanNetworks: start")
+      boss.networks.clear()
       Handler(Looper.getMainLooper()).postDelayed({
         esp.scanNetworks(object : WiFiScanListener {
           override fun onWifiListReceived(wifiList: ArrayList<WiFiAccessPoint>?) {
