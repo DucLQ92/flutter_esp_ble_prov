@@ -101,7 +101,7 @@ class Boss {
   /**
    * The available WiFi networks for the most recently scanned BLE device.
    */
-  val networks = mutableSetOf<String>()
+  val networks = mutableListOf<Map<String, Any>>()
 
   // Managers performing the various actions
   private val bleScanner: BleScanManager = BleScanManager(this)
@@ -230,23 +230,33 @@ class WifiScanManager(boss: Boss) : ActionManager(boss) {
     boss.d("esp connect: start")
     boss.connect(conn, proofOfPossession) { esp ->
       boss.d("scanNetworks: start")
-      esp.scanNetworks(object : WiFiScanListener {
-        override fun onWifiListReceived(wifiList: ArrayList<WiFiAccessPoint>?) {
-          wifiList ?: return
-          wifiList.forEach { boss.networks.add(it.wifiName) }
-          boss.d("scanNetworks: complete ${boss.networks}")
-          Handler(Looper.getMainLooper()).post {
-            ctx.result.success(ArrayList<String>(boss.networks))
+      Handler(Looper.getMainLooper()).postDelayed({
+        esp.scanNetworks(object : WiFiScanListener {
+          override fun onWifiListReceived(wifiList: ArrayList<WiFiAccessPoint>?) {
+            wifiList ?: return
+            wifiList.forEach { it ->
+              val map = mapOf(
+                "wifiName" to it.wifiName,
+                "security" to (it.security != 0),
+                "rssi" to it.rssi,
+                "password" to it.password,
+              )
+              boss.networks.add(map)
+            }
+            boss.d("scanNetworks: complete ${boss.networks}")
+            Handler(Looper.getMainLooper()).post {
+              ctx.result.success(ArrayList<Map<String, Any>>(boss.networks))
+            }
+            boss.d("scanNetworks: complete 2 ${boss.networks}")
+            esp.disconnectDevice()
           }
-          boss.d("scanNetworks: complete 2 ${boss.networks}")
-          esp.disconnectDevice()
-        }
 
-        override fun onWiFiScanFailed(e: java.lang.Exception?) {
-          boss.e("scanNetworks: error $e")
-          ctx.result.error("E1", "WiFi scan failed", "Exception details $e")
-        }
-      })
+          override fun onWiFiScanFailed(e: java.lang.Exception?) {
+            boss.e("scanNetworks: error $e")
+            ctx.result.error("E1", "WiFi scan failed", "Exception details $e")
+          }
+        })
+      }, 2000)
     }
   }
 }
@@ -263,45 +273,47 @@ class WifiProvisionManager(boss: Boss) : ActionManager(boss) {
 
     boss.connect(conn, proofOfPossession) { esp ->
       boss.d("provision: start")
-      esp.provision(ssid, passphrase, object : ProvisionListener {
-        override fun createSessionFailed(e: java.lang.Exception?) {
-          boss.e("wifiprovision createSessionFailed")
-        }
+      Handler(Looper.getMainLooper()).postDelayed({
+        esp.provision(ssid, passphrase, object : ProvisionListener {
+          override fun createSessionFailed(e: java.lang.Exception?) {
+            boss.e("wifiprovision createSessionFailed")
+          }
 
-        override fun wifiConfigSent() {
-          boss.d("wifiConfigSent")
-        }
+          override fun wifiConfigSent() {
+            boss.d("wifiConfigSent")
+          }
 
-        override fun wifiConfigFailed(e: java.lang.Exception?) {
-          boss.e("wifiConfiFailed $e")
-          ctx.result.success(false)
-        }
+          override fun wifiConfigFailed(e: java.lang.Exception?) {
+            boss.e("wifiConfiFailed $e")
+            ctx.result.success(false)
+          }
 
-        override fun wifiConfigApplied() {
-          boss.d("wifiConfigApplied")
-        }
+          override fun wifiConfigApplied() {
+            boss.d("wifiConfigApplied")
+          }
 
-        override fun wifiConfigApplyFailed(e: java.lang.Exception?) {
-          boss.e("wifiConfigApplyFailed $e")
-          ctx.result.success(false)
-        }
+          override fun wifiConfigApplyFailed(e: java.lang.Exception?) {
+            boss.e("wifiConfigApplyFailed $e")
+            ctx.result.success(false)
+          }
 
-        override fun provisioningFailedFromDevice(failureReason: ESPConstants.ProvisionFailureReason?) {
-          boss.e("provisioningFailedFromDevice $failureReason")
-          ctx.result.success(false)
-        }
+          override fun provisioningFailedFromDevice(failureReason: ESPConstants.ProvisionFailureReason?) {
+            boss.e("provisioningFailedFromDevice $failureReason")
+            ctx.result.success(false)
+          }
 
-        override fun deviceProvisioningSuccess() {
-          boss.d("deviceProvisioningSuccess")
-          ctx.result.success(true)
-        }
+          override fun deviceProvisioningSuccess() {
+            boss.d("deviceProvisioningSuccess")
+            ctx.result.success(true)
+          }
 
-        override fun onProvisioningFailed(e: java.lang.Exception?) {
-          boss.e("onProvisioningFailed")
-          ctx.result.success(false)
-        }
+          override fun onProvisioningFailed(e: java.lang.Exception?) {
+            boss.e("onProvisioningFailed")
+            ctx.result.success(false)
+          }
 
-      })
+        })
+      }, 2000)
     }
   }
 

@@ -21,7 +21,7 @@ class _MyAppState extends State<MyApp> {
   final defaultDevicePrefix = 'PROV';
 
   List<String> devices = [];
-  List<String> networks = [];
+  List<Map<String, dynamic>> networks = [];
 
   String selectedDeviceName = '';
   String selectedSsid = '';
@@ -183,14 +183,14 @@ class _MyAppState extends State<MyApp> {
                     itemBuilder: (context, i) {
                       return ListTile(
                         title: Text(
-                          networks[i],
+                          networks[i]['wifiName'],
                           style: TextStyle(
                             color: Colors.green.shade700,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         onTap: () async {
-                          selectedSsid = networks[i];
+                          selectedSsid = networks[i]['wifiName'];
                           await provisionWifi();
                         },
                       );

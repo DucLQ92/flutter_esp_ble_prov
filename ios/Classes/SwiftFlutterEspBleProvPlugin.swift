@@ -82,13 +82,33 @@ private class BLEProvisionService: ProvisionService {
     func scanWifiNetworks(deviceName: String, proofOfPossession: String) {
         self.connect(deviceName: deviceName, proofOfPossession: proofOfPossession) {
             device in
-            device?.scanWifiList { wifiList, error in
-                if(error != nil) {
-                    NSLog("Error scanning wifi networks, deviceName: \(deviceName) ")
-                    ESPErrorHandler.handle(error: error!, result: self.result)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                device?.scanWifiList { wifiList, error in
+                    if let error = error {
+                        NSLog("Error scanning wifi networks, deviceName: \(deviceName)")
+                        ESPErrorHandler.handle(error: error, result: self.result)
+                        device?.disconnect()
+                        return
+                    }
+
+                    guard let wifiList = wifiList else {
+                        self.result([])
+                        device?.disconnect()
+                        return
+                    }
+
+                    let wifiInfoList: [[String: Any]] = wifiList.map { network in
+                        return [
+                            "wifiName": network.ssid,
+                            "security": network.auth != .open,
+                            "rssi": network.rssi,
+                            "password": ""
+                        ]
+                    }
+
+                    self.result(wifiInfoList)
+                    device?.disconnect()
                 }
-                self.result(wifiList?.map({(networks: ESPWifiNetwork) -> String in return networks.ssid}))
-                device?.disconnect()
             }
         }
     }
@@ -96,16 +116,18 @@ private class BLEProvisionService: ProvisionService {
     func provision(deviceName: String, proofOfPossession: String, ssid: String, passphrase: String) {
         self.connect(deviceName: deviceName, proofOfPossession: proofOfPossession){
             device in
-            device?.provision(ssid: ssid, passPhrase: passphrase) { status in
-                switch status {
-                case .success:
-                    NSLog("Success provisioning device. ssid: \(ssid), deviceName: \(deviceName) ")
-                    self.result(true)
-                case .configApplied:
-                    NSLog("Wifi config applied device. ssid: \(ssid), deviceName: \(deviceName) ")
-                case .failure:
-                    NSLog("Failed to provision device. ssid: \(ssid), deviceName: \(deviceName) ")
-                    self.result(false)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                device?.provision(ssid: ssid, passPhrase: passphrase) { status in
+                    switch status {
+                    case .success:
+                        NSLog("Success provisioning device. ssid: \(ssid), deviceName: \(deviceName) ")
+                        self.result(true)
+                    case .configApplied:
+                        NSLog("Wifi config applied device. ssid: \(ssid), deviceName: \(deviceName) ")
+                    case .failure:
+                        NSLog("Failed to provision device. ssid: \(ssid), deviceName: \(deviceName) ")
+                        self.result(false)
+                    }
                 }
             }
         }

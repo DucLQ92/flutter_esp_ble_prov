@@ -31,7 +31,7 @@ abstract class FlutterEspBleProvPlatform extends PlatformInterface {
     throw UnimplementedError('scanBleDevices has not been implemented.');
   }
 
-  Future<List<String>> scanWifiNetworks(String deviceName, String proofOfPossession) {
+  Future<List<Map<String, dynamic>>> scanWifiNetworks(String deviceName, String proofOfPossession) {
     throw UnimplementedError('scanWifiNetworks has not been implemented.');
   }
 

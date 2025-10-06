@@ -38,15 +38,15 @@ class MethodChannelFlutterEspBleProv extends FlutterEspBleProvPlatform {
   }
 
   @override
-  Future<List<String>> scanWifiNetworks(String deviceName, String proofOfPossession) async {
+  Future<List<Map<String, dynamic>>> scanWifiNetworks(String deviceName, String proofOfPossession) async {
     final args = {
       'deviceName': deviceName,
       'proofOfPossession': proofOfPossession,
     };
     final raw = await methodChannel.invokeMethod<List<Object?>>('scanWifiNetworks', args);
-    final List<String> networks = [];
+    List<Map<String, dynamic>> networks = [];
     if (raw != null) {
-      networks.addAll(raw.cast<String>());
+      networks = (raw as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
     }
     return networks;
   }
