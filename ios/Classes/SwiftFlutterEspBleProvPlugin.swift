@@ -74,7 +74,7 @@ private class BLEProvisionService: ProvisionService {
                 ESPErrorHandler.handle(error: error!, result: self.result)
             }
             self.result(deviceList?.map({ (device: ESPDevice) -> String in
-                return device.name
+                return device.name ?? "unknown device"
             }))
         }
     }
