@@ -198,7 +198,7 @@ class BleScanManager(boss: Boss) : ActionManager(boss) {
         boss.d("searchBleEspDevices: found $device $scanResult")
         device ?: return
         scanResult ?: return
-        boss.devices.put(device.name, BleConnector(device, scanResult))
+        boss.devices.put(device.name ?: device.address ?: "unknown device", BleConnector(device, scanResult))
       }
 
       override fun scanCompleted() {
